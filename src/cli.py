@@ -78,11 +78,16 @@ def build_parser(
     return parser
 
 
-def bootstrap(config_path: str | Path) -> BootstrapReport:
+def bootstrap(config_path: str | Path, *, log_filename: str | None = None) -> BootstrapReport:
     """Initialise every infrastructure component and report what was set up.
 
     The steps are executed in a fixed order and the first failure aborts the
     bootstrap, so a returned report always describes fully completed steps.
+
+    Args:
+        config_path: YAML configuration to load.
+        log_filename: Name of the log file inside ``paths.logs``. Defaults to
+            ``<project.name>.log`` so each entry point can keep its own log.
 
     Raises:
         ConfigError: If the configuration is missing, malformed or incomplete.
@@ -101,7 +106,7 @@ def bootstrap(config_path: str | Path) -> BootstrapReport:
         logger = configure_logging(
             level=config.get("logging.level"),
             log_dir=log_dir,
-            filename=f"{project_name}.log",
+            filename=log_filename or f"{project_name}.log",
         )
         completed.append("Logger")
         logger.info("Configuration loaded from %s.", resolve(config_path))

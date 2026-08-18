@@ -1,11 +1,10 @@
-# DINOv2-S Plant Disease Classification — project configuration.
+# DINOv2 Plant Disease Classification — project configuration.
 #
-# The project, paths, device, logging, reproducibility and model sections are
-# active. The remaining sections are reserved for later milestones and are
-# intentionally left unpopulated.
+# Single source of truth for every tunable value. The evaluation section is
+# reserved for Milestone 6 and is intentionally left unpopulated.
 
 project:
-  name: "dinov2_s_plant_disease"
+  name: "dinov2_plant_disease"
   version: "1.0.0"
   seed: 42
 
@@ -27,24 +26,142 @@ reproducibility:
 
 model:
   # torch.hub entrypoint of the DINOv2 backbone. Swapping this value is the only
-  # change needed to move to ViT-B/14, ViT-L/14 or ViT-G/14.
-  name: "dinov2_vits14"
+  # change needed to move to ViT-S/14, ViT-L/14 or ViT-G/14; feature_dim below
+  # has to be set to that backbone's embedding width at the same time.
+  name: "dinov2_vitb14"
   pretrained: true
   freeze_backbone: false
   image_size: 224
   # Checked against the embedding width the backbone actually reports; the
   # backbone stays the source of truth.
-  feature_dim: 384
-  # Placeholder for architectural verification only. Milestone 4 replaces this
-  # with the class count derived from the dataset metadata.
+  feature_dim: 768
+  # Fallback used by the standalone model verification only. Training and
+  # pipeline verification override it with the class count discovered on disk.
   num_classes: 10
 
 classifier:
   type: "linear"
   dropout: 0.0
 
-dataset: {}
+dataset:
+  # Split directories are resolved as <root>/<split>; each must hold one
+  # sub-directory per class. Class names are discovered, never hardcoded.
+  root: "data"
+  splits:
+    train: "train"
+    val: "val"
+    test: "test"
+  # Compared case-insensitively against each file suffix.
+  extensions: [".jpg", ".jpeg", ".png", ".bmp", ".webp"]
+  # Shorter edge the image is resized to before cropping to model.image_size.
+  resize_size: 256
+  # A split whose largest class is this many times its smallest is reported as
+  # imbalanced. Reported as a warning; it never blocks training.
+  imbalance_ratio_threshold: 10.0
+  audit_filename: "dataset_audit.json"
+  augmentation:
+    random_resized_crop_scale: [0.7, 1.0]
+    random_resized_crop_ratio: [0.75, 1.3333]
+    horizontal_flip_probability: 0.5
+    rotation_degrees: 15.0
+    color_jitter_brightness: 0.2
+    color_jitter_contrast: 0.2
+    color_jitter_saturation: 0.2
+    color_jitter_hue: 0.05
+    random_erasing_probability: 0.25
+  # ImageNet statistics, which the DINOv2 backbone was pretrained with.
+  normalization:
+    mean: [0.485, 0.456, 0.406]
+    std: [0.229, 0.224, 0.225]
 
-training: {}
+dataloader:
+  batch_size: 32
+  # 0 loads in the main process; persistent_workers and prefetch_factor only
+  # apply above 0 and are reported as disabled when they cannot be honoured.
+  num_workers: 4
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+  drop_last: false
 
-evaluation: {}
+training:
+  epochs: 30
+  log_filename: "train.log"
+  history_filename: "history.csv"
+  # Maximum global gradient norm; 0 disables clipping.
+  gradient_clip_norm: 1.0
+  amp:
+    enabled: true
+    # "auto" selects bfloat16 when the GPU supports it, float16 otherwise.
+    dtype: "auto"
+  optimizer:
+    name: "adamw"
+    learning_rate: 0.0001
+    weight_decay: 0.05
+    betas: [0.9, 0.999]
+  scheduler:
+    name: "cosine"
+    min_learning_rate: 0.000001
+  early_stopping:
+    enabled: true
+    monitor: "val_accuracy"
+    mode: "max"
+    patience: 5
+    min_delta: 0.001
+  checkpoints:
+    best_filename: "best_model.pt"
+    last_filename: "last_model.pt"
+
+visualization:
+  loss_curve_filename: "loss_curve.png"
+  accuracy_curve_filename: "accuracy_curve.png"
+  figure_width: 10.0
+  figure_height: 6.0
+  dpi: 150
+
+evaluation:
+  # Checkpoint to evaluate, resolved inside paths.checkpoints.
+  checkpoint_filename: "best_model.pt"
+  # Split evaluated. Held out from training; nothing here ever writes to it.
+  split: "test"
+  log_filename: "evaluate.log"
+  # k for Top-k accuracy, reduced to the class count on smaller datasets.
+  top_k: 5
+  # Equal-width confidence bins behind the reliability diagram and ECE.
+  calibration_bins: 15
+  # Tolerance when checking that every probability row sums to one.
+  probability_tolerance: 0.00001
+  benchmark:
+    warmup_batches: 5
+    measured_batches: 50
+  filenames:
+    report: "evaluation.json"
+    per_class: "per_class_metrics.csv"
+    classification_report: "classification_report.txt"
+    confusion_matrix_csv: "confusion_matrix.csv"
+    benchmark: "inference_benchmark.json"
+    confusion_matrix_plot: "confusion_matrix.png"
+    roc_curves_plot: "roc_curves.png"
+    pr_curves_plot: "pr_curves.png"
+    calibration_plot: "calibration_curve.png"
+  # Square edge, in inches, of the confusion matrix figure. Every other figure
+  # reuses visualization.figure_width and figure_height.
+  confusion_matrix_figure_size: 16.0
+
+api:
+  title: "DINOv2-LeafCare Inference API"
+  description: "Plant disease classification served by a fine-tuned DINOv2 ViT-B/14."
+  # Checkpoint served by the API, resolved inside paths.checkpoints. It is read
+  # once at startup and never reloaded per request.
+  checkpoint_filename: "best_model.pt"
+  log_filename: "api.log"
+  # Number of ranked predictions returned alongside the top-1 answer.
+  top_k: 5
+  # Upload limits. A request breaching either is rejected before decoding.
+  max_batch_size: 16
+  max_image_bytes: 10485760
+  allowed_content_types:
+    - "image/jpeg"
+    - "image/png"
+    - "image/bmp"
+    - "image/webp"

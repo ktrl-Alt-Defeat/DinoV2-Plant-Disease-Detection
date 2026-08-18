@@ -53,8 +53,12 @@ from src.verification import (
 
 REPOSITORY_CONFIG: Path = Path("configs") / "config.yaml"
 
-#: Feature width of the official DINOv2 ViT-S/14 backbone.
-EXPECTED_FEATURE_DIM: int = 384
+#: Feature width of the official DINOv2 ViT-B/14 backbone.
+EXPECTED_FEATURE_DIM: int = 768
+
+#: Embedding width of a *different* official backbone, used to prove that a
+#: configured feature width disagreeing with the backbone is rejected.
+MISMATCHED_FEATURE_DIM: int = 384
 
 #: Patch size shared by every official DINOv2 backbone.
 EXPECTED_PATCH_SIZE: int = 14
@@ -62,7 +66,7 @@ EXPECTED_PATCH_SIZE: int = 14
 #: Placeholder class count used for architectural verification.
 EXPECTED_NUM_CLASSES: int = 10
 
-#: Parameters of the default ``Linear(384 -> 10)`` head: weight matrix plus bias.
+#: Parameters of the default ``Linear(768 -> 10)`` head: weight matrix plus bias.
 EXPECTED_HEAD_PARAMETERS: int = EXPECTED_FEATURE_DIM * EXPECTED_NUM_CLASSES + EXPECTED_NUM_CLASSES
 
 CPU: torch.device = torch.device("cpu")
@@ -101,7 +105,7 @@ class ConfigurationTests(unittest.TestCase):
     def test_model_and_classifier_sections_are_complete(self) -> None:
         config = load_config(REPOSITORY_CONFIG)
 
-        self.assertEqual(config.get("model.name"), "dinov2_vits14")
+        self.assertEqual(config.get("model.name"), "dinov2_vitb14")
         self.assertTrue(config.get("model.pretrained"))
         self.assertFalse(config.get("model.freeze_backbone"))
         self.assertEqual(config.get("model.image_size"), 224)
@@ -117,10 +121,10 @@ class ConfigurationTests(unittest.TestCase):
         model_specification = ModelSpecification.from_config(config)
         classifier_specification = ClassifierSpecification.from_config(config)
 
-        self.assertEqual(model_specification.name, "dinov2_vits14")
+        self.assertEqual(model_specification.name, "dinov2_vitb14")
         self.assertEqual(model_specification.feature_dim, EXPECTED_FEATURE_DIM)
         self.assertEqual(model_specification.num_classes, EXPECTED_NUM_CLASSES)
-        self.assertEqual(model_specification.display_name, "DINOv2 ViT-S/14")
+        self.assertEqual(model_specification.display_name, "DINOv2 ViT-B/14")
         self.assertEqual(classifier_specification.type, "linear")
         self.assertEqual(classifier_specification.dropout, 0.0)
         self.assertEqual(classifier_specification.display_name, "Linear")
@@ -188,7 +192,7 @@ class BackboneTests(SharedModelTestCase):
 
     def test_backbone_is_built_from_configuration(self) -> None:
         self.assertIsInstance(self.model, DinoV2Classifier)
-        self.assertEqual(self.model.name, "dinov2_vits14")
+        self.assertEqual(self.model.name, "dinov2_vitb14")
         self.assertIn(self.model.name, KNOWN_BACKBONES)
         self.assertEqual(self.model.patch_size, EXPECTED_PATCH_SIZE)
         self.assertEqual(self.model.device.type, "cpu")
@@ -220,7 +224,7 @@ class BackboneTests(SharedModelTestCase):
 
     def test_weight_source_points_at_the_official_repository(self) -> None:
         self.assertTrue(self.model.is_pretrained)
-        self.assertIn("dinov2_vits14_pretrain.pth", self.model.weights_source)
+        self.assertIn("dinov2_vitb14_pretrain.pth", self.model.weights_source)
         self.assertEqual(self.model.describe()["hub_repository"], DINOV2_HUB_REPOSITORY)
 
     def test_random_initialisation_is_reported_as_such(self) -> None:
@@ -239,10 +243,10 @@ class FeatureDimensionTests(SharedModelTestCase):
 
     def test_mismatched_feature_dim_is_rejected(self) -> None:
         with self.assertRaises(ModelBuildError) as raised:
-            build_test_model(feature_dim=768)
+            build_test_model(feature_dim=MISMATCHED_FEATURE_DIM)
 
         message = str(raised.exception)
-        self.assertIn("768", message)
+        self.assertIn(str(MISMATCHED_FEATURE_DIM), message)
         self.assertIn(str(EXPECTED_FEATURE_DIM), message)
 
 
@@ -433,11 +437,11 @@ class ParameterCountingTests(SharedModelTestCase):
         self.assertEqual(self.model.count_parameters(), expected_total)
         self.assertEqual(self.model.count_trainable_parameters(), expected_trainable)
 
-    def test_vit_small_has_the_expected_scale(self) -> None:
+    def test_vit_base_has_the_expected_scale(self) -> None:
         total = self.model.count_parameters()
 
-        self.assertGreater(total, 20_000_000)
-        self.assertLess(total, 25_000_000)
+        self.assertGreater(total, 80_000_000)
+        self.assertLess(total, 90_000_000)
 
     def test_model_size_is_consistent_with_parameter_count(self) -> None:
         size_mb = self.model.model_size_mb()
@@ -448,7 +452,7 @@ class ParameterCountingTests(SharedModelTestCase):
     def test_describe_reports_the_full_architecture(self) -> None:
         summary = self.model.describe()
 
-        self.assertEqual(summary["backbone_display"], "DINOv2 ViT-S/14")
+        self.assertEqual(summary["backbone_display"], "DINOv2 ViT-B/14")
         self.assertEqual(summary["feature_dim"], EXPECTED_FEATURE_DIM)
         self.assertEqual(summary["classifier"], "Linear")
         self.assertEqual(summary["num_classes"], EXPECTED_NUM_CLASSES)
@@ -513,7 +517,7 @@ class ArtifactTests(SharedModelTestCase):
         contents = artifacts["model_summary"].read_text(encoding="utf-8")
 
         self.assertEqual(artifacts["model_summary"].name, MODEL_SUMMARY_FILENAME)
-        self.assertIn("DINOv2 ViT-S/14", contents)
+        self.assertIn("DINOv2 ViT-B/14", contents)
         self.assertIn("Classifier:", contents)
         self.assertIn(f"in_features={EXPECTED_FEATURE_DIM}", contents)
         self.assertIn(f"out_features={EXPECTED_NUM_CLASSES}", contents)
@@ -527,7 +531,7 @@ class ArtifactTests(SharedModelTestCase):
 
         self.assertEqual(artifacts["model_verification"].name, MODEL_VERIFICATION_FILENAME)
         self.assertEqual(payload["status"], PASSED)
-        self.assertEqual(payload["model"]["backbone"], "dinov2_vits14")
+        self.assertEqual(payload["model"]["backbone"], "dinov2_vitb14")
         self.assertEqual(payload["model"]["feature_dim"], EXPECTED_FEATURE_DIM)
         self.assertEqual(payload["model"]["num_classes"], EXPECTED_NUM_CLASSES)
         self.assertEqual(payload["model"]["classifier_type"], "linear")

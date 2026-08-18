@@ -62,10 +62,10 @@ class ConfigLoadingTests(TempDirTestCase):
         config = load_config(Path("configs") / "config.yaml")
 
         self.assertIsInstance(config, Config)
-        self.assertEqual(config.get("project.name"), "dinov2_s_plant_disease")
+        self.assertEqual(config.get("project.name"), "dinov2_plant_disease")
         self.assertEqual(config.get("project.version"), "1.0.0")
         self.assertEqual(config.get("project.seed"), 42)
-        self.assertEqual(config.get("model.name"), "dinov2_vits14")
+        self.assertEqual(config.get("model.name"), "dinov2_vitb14")
 
     def test_dotted_lookup_default_and_membership(self) -> None:
         config = load_config(write_config(self.temp_path))

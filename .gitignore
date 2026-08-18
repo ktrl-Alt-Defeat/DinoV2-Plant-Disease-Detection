@@ -1,14 +1,84 @@
+# ---------------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------------
 __pycache__/
-*.pyc
+*.py[cod]
+*$py.class
+*.so
 
-logs/
-results/
+# Packaging / build output
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# ---------------------------------------------------------------------------
+# Environments and secrets
+# ---------------------------------------------------------------------------
+.venv/
+venv/
+env/
+
+# The application reads no environment variables today (see docs/CONFIG.md),
+# but this keeps a stray .env out of history if that ever changes.
+.env
+.env.*
+!.env.example
+
+# ---------------------------------------------------------------------------
+# Tooling caches
+# ---------------------------------------------------------------------------
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+.ipynb_checkpoints/
+.coverage
+.coverage.*
+htmlcov/
+
+# ---------------------------------------------------------------------------
+# Project run artifacts
+#
+# Every directory below is recreated by ProjectPaths.create() on each run
+# (src/paths.py) and repopulated by the pipeline. None of it belongs in git.
+# ---------------------------------------------------------------------------
+
+# Dataset: ~110k images in ImageFolder layout. Expected structure is documented
+# in README.md; reconstruct it from the source dataset rather than cloning it.
+data/
+
+# Model weights: roughly 1 GB per checkpoint, written by src/train.py.
 checkpoints/
 
-.venv/
+# Per-entry-point run logs (train.log, evaluate.log, api.log, ...).
+logs/
 
+# Reports and figures from src/audit_dataset.py, src/train.py, src/evaluate.py.
+results/
+
+# ---------------------------------------------------------------------------
+# Model weight and data files anywhere in the tree
+# ---------------------------------------------------------------------------
+*.pt
+*.pth
+*.ckpt
+*.safetensors
+*.onnx
+*.bin
+*.npy
+*.npz
+
+# Stray log files outside logs/
+*.log
+
+# ---------------------------------------------------------------------------
+# Editors and operating systems
+# ---------------------------------------------------------------------------
 .idea/
 .vscode/
-
+*.swp
+*.swo
+*~
 .DS_Store
 Thumbs.db
+desktop.ini

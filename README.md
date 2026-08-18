@@ -1,151 +1,190 @@
 # DINOv2-LeafCare
 
-Fine-tuning a pretrained **DINOv2-S** (`dinov2_vits14`) Vision Transformer for multi-class
-plant disease classification.
+Plant disease image classification built on a fine-tuned **DINOv2 ViT-B/14**
+backbone, with a dataset audit, a training pipeline, a full evaluation suite and
+a FastAPI inference service.
 
-This repository is built milestone by milestone. It currently delivers the **engineering
-foundation** (Milestone 1), the **DINOv2 backbone** (Milestone 2) and the **configurable
-classification head with structural verification** (Milestone 3). No dataset access, no
-training and no evaluation code exists yet; `model.num_classes` is a placeholder until the
-dataset is integrated.
+Detailed documentation lives in [`docs/`](docs/README.md).
 
-## Repository structure
+## What is implemented
 
-```text
-DinoV2-LeafCare/
-├── configs/
-│   └── config.yaml          # Single source of truth for every tunable value
-├── src/
-│   ├── cli.py               # Infrastructure entry point (python -m src.cli)
-│   ├── config.py            # YAML loading, dotted-key access, validation
-│   ├── device.py            # CUDA detection, CPU fallback, hardware introspection
-│   ├── logger.py            # Singleton logger, console + optional UTF-8 file output
-│   ├── model.py             # DINOv2 backbone + classifier (python -m src.model)
-│   ├── paths.py             # Project root resolution and directory management
-│   ├── reporting.py         # Shared console report formatting
-│   ├── seed.py              # Reproducibility across Python, NumPy, PyTorch and cuDNN
-│   ├── utils.py             # Generic helpers (JSON/CSV/text I/O, timing, formatting)
-│   ├── verification.py      # Synthetic structural verification of the model
-│   ├── models/              # Reserved — model components beyond the backbone
-│   ├── datasets/            # Reserved — Milestone 4
-│   ├── training/            # Reserved — Milestone 5
-│   ├── evaluation/          # Reserved — Milestone 6
-│   └── visualization/       # Reserved — Milestone 7
-├── tests/
-│   ├── test_milestone1.py   # Synthetic unit tests for the foundation
-│   └── test_milestone3.py   # Synthetic unit tests for the integrated model
-├── checkpoints/             # Model weights (git-ignored)
-├── logs/                    # Run logs (git-ignored)
-├── results/                 # Metrics, summaries and reports (git-ignored)
-├── pyproject.toml           # Dependency specification
-└── uv.lock                  # Fully resolved, reproducible dependency lock
-```
+| Capability | Entry point |
+| --- | --- |
+| Infrastructure bootstrap and environment report | `python -m src.cli` |
+| Structural model verification on synthetic tensors | `python -m src.model` |
+| Dataset integrity audit | `python -m src.audit_dataset` |
+| End-to-end pipeline verification | `python -m src.verify_pipeline` |
+| Fine-tuning with AMP, cosine schedule, early stopping, resume | `python -m src.train` |
+| Held-out evaluation with integrity guarantees | `python -m src.evaluate` |
+| REST inference API | `uvicorn src.api.main:app` |
 
-Directory creation lives in `src/paths.py`; no other module creates directories, and every
-path is built with `pathlib` relative to the repository root, so the project behaves
-identically on Windows, macOS and Linux.
+## Model
 
-`src/model.py` defines the model; `src/verification.py` holds the verification harness that
-`python -m src.model` runs. Keeping the two apart means importing the model never pulls in
-the test harness.
+| Property | Value |
+| --- | --- |
+| Backbone | DINOv2 ViT-B/14 (`dinov2_vitb14`), loaded via `torch.hub` |
+| Feature dimension | 768 |
+| Head | `Linear(768, num_classes)` |
+| Input | 224×224 RGB |
+| Total parameters | 86,609,702 |
 
-`tests/test_milestone3.py` supersedes the Milestone 2 suite: the model contract changed
-from "feature extractor" to "backbone plus classification head", and every check the older
-suite performed is re-expressed there against the integrated model.
+Class count is never hardcoded: training and evaluation derive it from the
+dataset directory layout, and the API derives it from the checkpoint.
+
+## Results
+
+Measured on the held-out `data/test` split — see
+[`results/evaluation.json`](results/) and [docs/METRICS.md](docs/METRICS.md).
+
+| Metric | Value |
+| --- | --- |
+| Classes | 38 |
+| Test images | 7,671 |
+| Top-1 accuracy | 0.9840 |
+| Top-5 accuracy | 0.9944 |
+| Macro F1 | 0.9778 |
+| Expected calibration error | 0.0064 |
+| Checkpoint | `best_model.pt`, epoch 14 |
 
 ## Requirements
 
 - Python 3.11 or newer
 - [uv](https://docs.astral.sh/uv/) as the package manager
+- NVIDIA GPU optional; every stage falls back to CPU
 
-`pyproject.toml` and `uv.lock` are the only source of truth for dependencies. Do not edit
-`uv.lock` by hand.
+`pyproject.toml` and `uv.lock` are the only source of truth for dependencies.
+`torch`, `torchvision` and `torchaudio` resolve from the pinned CUDA 13.0 index
+declared in `pyproject.toml`. Do not edit `uv.lock` by hand.
 
 ## Installation
 
 ```bash
-git clone <repository-url>
-cd DinoV2-LeafCare
-
 uv venv
 uv sync
 ```
 
-`uv sync` reproduces the exact locked environment, including the `dev` dependency group.
+## Dataset layout
 
-Adding dependencies later:
+The dataset is git-ignored and expected at:
 
-```bash
-uv add <package>              # runtime dependency
-uv add --dev <package>        # development dependency
+```text
+data/
+├── train/<class_name>/*.jpg
+├── val/<class_name>/*.jpg
+└── test/<class_name>/*.jpg
 ```
 
-## Environment setup check
+Every split must contain the same class directories. The audit enforces this and
+13 other integrity rules before any training starts.
 
-Run the infrastructure bootstrap to verify the environment:
+## Usage
 
 ```bash
-uv run python -m src.cli
-# or with an explicit configuration
+# 1. Verify the environment
 uv run python -m src.cli --config configs/config.yaml
+
+# 2. Audit the dataset -> results/dataset_audit.json
+uv run python -m src.audit_dataset --config configs/config.yaml
+
+# 3. Verify the pipeline end to end (temporary artifacts only)
+uv run python -m src.verify_pipeline --config configs/config.yaml
+
+# 4. Train -> checkpoints/ + results/history.csv + curves
+uv run python -m src.train --config configs/config.yaml
+uv run python -m src.train --config configs/config.yaml --resume checkpoints/last_model.pt
+
+# 5. Evaluate -> results/evaluation.json + 8 further artifacts
+uv run python -m src.evaluate --config configs/config.yaml
+
+# 6. Serve
+uv run uvicorn src.api.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-The command loads the configuration, initialises the logger, seeds every random number
-generator, creates `logs/`, `checkpoints/` and `results/`, detects the compute device and
-prints a summary ending in `STATUS: PASS`.
+Training runs the dataset audit itself and aborts before the backbone loads if
+the dataset carries any error-severity issue.
 
-## Model verification
+## API
 
-```bash
-uv run python -m src.model
-# or with an explicit configuration
-uv run python -m src.model --config configs/config.yaml
-```
+Swagger UI at `http://localhost:8000/docs` once the service is running.
 
-This builds the configured DINOv2 backbone with the official pretrained weights, attaches
-the classification head, runs a forward pass on synthetic `torch.randn(2, 3, 224, 224)`
-tensors under `torch.inference_mode()`, then checks the embedding shape, the logit shape,
-CPU and CUDA execution and the absence of NaN/Inf values before writing two artifacts into
-`results/`:
+| Method | Path | Purpose |
+| --- | --- | --- |
+| GET | `/health` | Service, model and GPU status |
+| GET | `/metadata` | Model, class vocabulary, checkpoint identity |
+| POST | `/predict` | Classify one image |
+| POST | `/predict/batch` | Classify several images in one forward pass |
 
-- `model_summary.txt` — model facts and the full module tree
-- `model_verification.json` — machine-readable check results
+The checkpoint is read once at startup and never reloaded per request. The
+service does not require `data/` to be present. There is **no authentication** —
+see [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for the hardening gaps.
 
-The first run downloads the official weights (~85 MB) from `facebookresearch/dinov2` via
-`torch.hub`; later runs reuse the local cache.
+## Repository structure
 
-## Verification
-
-```bash
-uv run python -m unittest discover -s tests -p "test_*.py"
-uv run ruff check .
+```text
+├── configs/config.yaml   # Single source of truth, 94 keys
+├── src/
+│   ├── cli.py            # Shared bootstrap + infrastructure CLI
+│   ├── config.py         # Config loading, validation, overrides
+│   ├── model.py          # DINOv2 backbone + classification head
+│   ├── train.py          # Training orchestration
+│   ├── evaluate.py       # Evaluation orchestration
+│   ├── audit_dataset.py  # Dataset audit CLI
+│   ├── verify_pipeline.py
+│   ├── datasets/         # Audit, transforms, dataloaders
+│   ├── training/         # Engine, optim, checkpoints, AMP, early stopping
+│   ├── evaluation/       # Inference, metrics, integrity, reporting
+│   ├── visualization/    # Training curves, evaluation figures
+│   └── api/              # FastAPI service
+├── tests/                # 127 tests across 3 modules
+├── docs/                 # Full documentation
+├── data/                 # Dataset (git-ignored)
+├── checkpoints/          # Model weights (git-ignored)
+├── logs/                 # Run logs (git-ignored)
+└── results/              # Reports and figures (git-ignored)
 ```
 
 ## Configuration
 
-All behaviour is driven by `configs/config.yaml`. The `project`, `paths`, `device`,
-`logging`, `reproducibility`, `model` and `classifier` sections are active today;
-`dataset`, `training` and `evaluation` are reserved for the milestones below.
+All behaviour is driven by [`configs/config.yaml`](configs/config.yaml). The
+application reads **no environment variables**. Every entry point accepts
+`--config`; `src.train` also accepts `--resume` and `src.evaluate` accepts
+`--checkpoint`.
 
-Switching backbone is a configuration change only — set `model.name` to `dinov2_vits14`,
-`dinov2_vitb14`, `dinov2_vitl14` or `dinov2_vitg14`, and `model.feature_dim` to that
-backbone's embedding width. The width is checked against what the backbone actually
-reports, so a mismatch fails the build with an explicit message instead of being trusted.
+Switching backbone is a configuration change: set `model.name` to
+`dinov2_vits14`, `dinov2_vitb14`, `dinov2_vitl14` or `dinov2_vitg14` and set
+`model.feature_dim` to that backbone's embedding width. The width is checked
+against what the backbone reports, so a mismatch fails the build with an explicit
+message. Note that `tests/test_milestone1.py` and `tests/test_milestone3.py`
+assert against the values currently in `configs/config.yaml`.
 
-The head is described by `classifier.type` (`linear`) and `classifier.dropout`; a dropout
-probability above `0` prepends a `Dropout` layer to the linear projection.
+Full key reference: [docs/CONFIG.md](docs/CONFIG.md).
 
-> `model.num_classes: 10` is a **placeholder for architectural verification only**. It is
-> replaced with the real class count derived from the dataset metadata in Milestone 4.
+## Quality gates
 
-## Milestone roadmap
+```bash
+uv run ruff check .
+uv run python -m unittest discover -s tests -p "test_*.py"
+```
 
-| Milestone | Scope | Status |
-| --- | --- | --- |
-| 1 | Project foundation and engineering infrastructure | Complete |
-| 2 | DINOv2-S backbone and structural verification | Complete |
-| 3 | Classification head and model integration | Complete |
-| 4 | Dataset pipeline, dataloaders and real class count | Planned |
-| 5 | Fine-tuning loop, schedulers and checkpointing | Planned |
-| 6 | Evaluation, metrics and reporting | Planned |
-| 7 | Visualisation, inference and benchmarking | Planned |
+`tests/test_milestone3.py` loads the real pretrained backbone and needs the
+`torch.hub` cache populated.
+
+## Documentation
+
+| Document | Covers |
+| --- | --- |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Layering, module graph, execution flows |
+| [docs/API.md](docs/API.md) | Routes, schemas, validation, errors, middleware |
+| [docs/MODEL.md](docs/MODEL.md) | Preprocessing, inference, checkpoint format, versioning |
+| [docs/METRICS.md](docs/METRICS.md) | Every metric, where computed, interpretation |
+| [docs/CONFIG.md](docs/CONFIG.md) | All 94 configuration keys |
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | Dependencies, startup, serving stack |
+| [docs/CODEMAP.md](docs/CODEMAP.md) | File-by-file responsibilities, technical debt |
+
+## Known gaps
+
+Tracked in [docs/CODEMAP.md](docs/CODEMAP.md#technical-debt). The main ones:
+`torchaudio` and `huggingface-hub` are declared but unimported; the torch stack
+has no version floors; `pyproject.toml` version (`0.1.0`) and
+`project.version` (`1.0.0`) disagree; there is no CI, Dockerfile or
+authentication.

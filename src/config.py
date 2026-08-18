@@ -164,6 +164,28 @@ def load_config(path: str | Path) -> Config:
     return config
 
 
+def with_overrides(config: Config, **sections: Mapping[str, Any]) -> Config:
+    """Return a copy of ``config`` with the given section entries replaced.
+
+    Only the named keys are replaced; the rest of each section is preserved.
+    Used to inject values that are only known at runtime, such as the class
+    count discovered on disk.
+
+    Raises:
+        ConfigError: If a named section is absent or is not a mapping.
+    """
+    payload = config.as_dict()
+    for name, values in sections.items():
+        section = payload.get(name)
+        if not isinstance(section, Mapping):
+            raise ConfigError(
+                f"Cannot override section '{name}': it is "
+                f"{'absent' if section is None else f'a {type(section).__name__}'}."
+            )
+        payload[name] = {**section, **values}
+    return Config(payload)
+
+
 def validate_keys(
     config: Config,
     required_keys: Sequence[tuple[str, TypeSpec]],
