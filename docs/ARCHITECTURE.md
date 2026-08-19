@@ -4,13 +4,12 @@
 
 | Package | Files | Responsibility | Source |
 | --- | --- | --- | --- |
-| `src` (root) | 11 modules | Infrastructure + CLI entry points | [src/](../src/) |
+| `src` (root) | 14 modules | Infrastructure + CLI entry points | [src/](../src/) |
 | `src.datasets` | 4 | Audit, transforms, dataloaders | [src/datasets/](../src/datasets/) |
 | `src.training` | 7 | Engine, optim, checkpoints, metrics, early stopping, precision | [src/training/](../src/training/) |
 | `src.evaluation` | 5 | Inference pass, metrics, integrity, reporting | [src/evaluation/](../src/evaluation/) |
 | `src.visualization` | 3 | Training curves, evaluation figures | [src/visualization/](../src/visualization/) |
 | `src.api` | 8 | FastAPI inference service | [src/api/](../src/api/) |
-| `src.models` | 1 | **Empty.** Docstring only, no code | [src/models/__init__.py](../src/models/__init__.py) |
 
 ## Layering
 
@@ -232,5 +231,7 @@ Every subsystem declares a required-key tuple and a frozen dataclass with
 | `matplotlib` | all figures, `Agg` backend | [src/visualization/plots.py](../src/visualization/plots.py) |
 | `scikit-learn` | evaluation metrics + curve data | [src/evaluation/metrics.py:15](../src/evaluation/metrics.py) |
 | `fastapi`, `uvicorn`, `python-multipart` | API | [src/api/](../src/api/) |
-| `torchaudio` | **no imports found** | see [CODEMAP.md](CODEMAP.md#technical-debt) |
-| `huggingface-hub` | **no imports found** | see [CODEMAP.md](CODEMAP.md#technical-debt) |
+
+Every declared runtime dependency is imported by `src`. `python-multipart` is the
+exception by design: FastAPI imports it internally to parse the `multipart/form-data`
+uploads the `/predict` routes accept.

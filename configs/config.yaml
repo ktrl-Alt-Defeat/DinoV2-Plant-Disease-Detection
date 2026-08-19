@@ -156,7 +156,14 @@ api:
   checkpoint_filename: "best_model.pt"
   log_filename: "api.log"
   # Number of ranked predictions returned alongside the top-1 answer.
-  top_k: 5
+  #
+  # The full vocabulary, not a short list. The LeafCare backend already knows
+  # which crop the photo shows (Pl@ntNet establishes that before this model is
+  # called) and reports the best-scoring class belonging to that crop. With a
+  # truncated ranking, a crop whose classes all fall outside the top five would
+  # be answered with another plant's disease. Ranking every class is a sort over
+  # 38 numbers, so it costs nothing measurable.
+  top_k: 38
   # Upload limits. A request breaching either is rejected before decoding.
   max_batch_size: 16
   max_image_bytes: 10485760

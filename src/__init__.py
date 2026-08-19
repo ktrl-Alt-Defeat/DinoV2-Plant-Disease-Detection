@@ -1,4 +1,4 @@
-"""DINOv2-S plant disease classification package.
+"""DINOv2-LeafCare plant disease classification package.
 
 This package hosts the engineering foundation (configuration, logging,
 reproducibility, device management, filesystem paths and the command line

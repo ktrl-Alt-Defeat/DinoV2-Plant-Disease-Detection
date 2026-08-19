@@ -31,6 +31,7 @@ from src.datasets.validation import (
     DatasetValidationError,
     audit_dataset,
 )
+from src.device import peak_memory_mib, reset_peak_memory
 from src.logger import configure_console_encoding, get_logger
 from src.model import DinoV2Classifier, ModelBuildError, build_model
 from src.training.checkpoints import (
@@ -40,13 +41,7 @@ from src.training.checkpoints import (
     save_checkpoint,
 )
 from src.training.early_stopping import MODE_MAX, EarlyStopping, EarlyStoppingSpecification
-from src.training.engine import (
-    evaluate,
-    log_epoch_start,
-    peak_gpu_memory_mib,
-    reset_gpu_memory_statistics,
-    train_one_epoch,
-)
+from src.training.engine import evaluate, log_epoch_start, train_one_epoch
 from src.training.metrics import EpochMetrics, write_history
 from src.training.optim import (
     OptimizerSpecification,
@@ -389,7 +384,7 @@ def _run_epoch(
     """Run one training epoch followed by validation and return its metrics."""
     learning_rate = current_learning_rate(optimizer)
     log_epoch_start(epoch, epochs, learning_rate)
-    reset_gpu_memory_statistics(device)
+    reset_peak_memory(device)
 
     with Timer() as timer:
         train_outcome = train_one_epoch(
@@ -421,7 +416,7 @@ def _run_epoch(
         val_accuracy=val_outcome.accuracy,
         learning_rate=learning_rate,
         epoch_seconds=timer.elapsed,
-        gpu_peak_mib=peak_gpu_memory_mib(device),
+        gpu_peak_mib=peak_memory_mib(device),
     )
 
 

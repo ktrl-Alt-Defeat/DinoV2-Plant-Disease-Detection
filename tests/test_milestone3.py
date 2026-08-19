@@ -20,7 +20,7 @@ import yaml
 from torch import nn
 
 from src import verification
-from src.config import Config, ConfigError, load_config
+from src.config import Config, ConfigError, load_config, with_overrides
 from src.logger import shutdown_logging
 from src.model import (
     CLASSIFIER_REQUIRED_KEYS,
@@ -74,10 +74,7 @@ CPU: torch.device = torch.device("cpu")
 
 def override_config(**sections: dict[str, object]) -> Config:
     """Return the repository configuration with the named sections updated."""
-    payload = load_config(REPOSITORY_CONFIG).as_dict()
-    for name, values in sections.items():
-        payload[name].update(values)
-    return Config(payload)
+    return with_overrides(load_config(REPOSITORY_CONFIG), **sections)
 
 
 def build_test_model(**model_overrides: object) -> DinoV2Classifier:

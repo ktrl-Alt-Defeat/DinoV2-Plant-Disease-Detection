@@ -23,6 +23,7 @@ from torch.utils.data import DataLoader
 from tqdm import tqdm
 
 from src.config import Config, TypeSpec, validate_keys
+from src.device import peak_memory_mib, reset_peak_memory, synchronize
 from src.logger import get_logger
 
 #: Percentiles reported for per-batch latency.
@@ -38,7 +39,6 @@ BENCHMARK_REQUIRED_KEYS: Final[tuple[tuple[str, TypeSpec], ...]] = (
 )
 
 _MILLISECONDS_PER_SECOND: Final[float] = 1000.0
-_BYTES_PER_MIB: Final[int] = 1024**2
 
 _LOGGER: Final = get_logger("evaluation.inference")
 
@@ -294,23 +294,3 @@ def softmax_probabilities(logits: torch.Tensor) -> np.ndarray:
     return torch.softmax(logits.to(torch.float64), dim=1).numpy()
 
 
-def synchronize(device: torch.device) -> None:
-    """Wait for outstanding CUDA work so timings measure completed compute."""
-    if device.type == "cuda":
-        torch.cuda.synchronize(device)
-
-
-def reset_peak_memory(device: torch.device) -> None:
-    """Reset the CUDA peak-allocation counter so it measures one phase."""
-    if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
-
-
-def peak_memory_mib(device: torch.device) -> float:
-    """Return the peak CUDA allocation since the last reset, in MiB.
-
-    Returns ``0.0`` on CPU, where the statistic does not exist.
-    """
-    if device.type != "cuda":
-        return 0.0
-    return torch.cuda.max_memory_allocated(device) / _BYTES_PER_MIB

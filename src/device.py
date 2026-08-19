@@ -11,6 +11,8 @@ from src.logger import get_logger
 #: Accepted values for the ``device.preferred`` configuration entry.
 SUPPORTED_PREFERENCES: Final[frozenset[str]] = frozenset({"auto", "cuda", "cpu"})
 
+_BYTES_PER_MIB: Final[int] = 1024**2
+
 _LOGGER: Final = get_logger("device")
 
 
@@ -85,6 +87,34 @@ def get_device_info(device: torch.device) -> DeviceInfo:
         cudnn_version=cudnn_version,
         total_memory_bytes=properties.total_memory,
     )
+
+
+def synchronize(device: torch.device) -> None:
+    """Wait for outstanding CUDA work so timings measure completed compute.
+
+    A no-op on CPU, where execution is already synchronous.
+    """
+    if device.type == "cuda":
+        torch.cuda.synchronize(device)
+
+
+def reset_peak_memory(device: torch.device) -> None:
+    """Reset the CUDA peak-allocation counter so it measures one phase.
+
+    A no-op on CPU, where the statistic does not exist.
+    """
+    if device.type == "cuda":
+        torch.cuda.reset_peak_memory_stats(device)
+
+
+def peak_memory_mib(device: torch.device) -> float:
+    """Return the peak CUDA allocation since the last reset, in MiB.
+
+    Returns ``0.0`` on CPU, where the statistic does not exist.
+    """
+    if device.type != "cuda":
+        return 0.0
+    return torch.cuda.max_memory_allocated(device) / _BYTES_PER_MIB
 
 
 def _cpu_name() -> str:

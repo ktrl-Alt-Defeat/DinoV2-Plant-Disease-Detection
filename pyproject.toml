@@ -1,7 +1,7 @@
 [project]
 name = "dinov2-leafcare"
-version = "0.1.0"
-description = "DINOv2-S plant disease classification."
+version = "1.0.0"
+description = "Plant disease classification on a fine-tuned DINOv2 ViT-B/14 backbone."
 readme = "README.md"
 requires-python = ">=3.11"
 
@@ -17,8 +17,6 @@ dependencies = [
     "python-multipart>=0.0.12",
     "torch",
     "torchvision",
-    "torchaudio",
-    "huggingface-hub>=1.27.0",
 ]
 
 [dependency-groups]
@@ -35,7 +33,6 @@ explicit = true
 [tool.uv.sources]
 torch = { index = "pytorch-cu130" }
 torchvision = { index = "pytorch-cu130" }
-torchaudio = { index = "pytorch-cu130" }
 
 [tool.ruff]
 line-length = 100

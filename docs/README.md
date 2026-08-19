@@ -24,14 +24,14 @@ the detailed reference.
 | Field | Value | Source |
 | --- | --- | --- |
 | Distribution name | `dinov2-leafcare` | [pyproject.toml:2](../pyproject.toml) |
-| Distribution version | `0.1.0` | [pyproject.toml:3](../pyproject.toml) |
+| Distribution version | `1.0.0` | [pyproject.toml:3](../pyproject.toml) |
 | Runtime `project.version` | `1.0.0` | [configs/config.yaml:9](../configs/config.yaml) |
 | Python requirement | `>=3.11` | [pyproject.toml:6](../pyproject.toml) |
 | Lint config | ruff, line-length 100, target py311 | [pyproject.toml](../pyproject.toml) |
 
-> The two version fields differ and are read by different code paths. The API and
-> all reports surface `project.version` (`1.0.0`), never the distribution version.
-> See [CONFIG.md](CONFIG.md#version-fields).
+> The two version fields are read by different code paths and are kept in sync by
+> hand. The API and all reports surface `project.version`, never the distribution
+> version. See [CONFIG.md](CONFIG.md#version-fields).
 
 ## Executable entry points
 

@@ -58,7 +58,7 @@ class BootstrapReport:
 def build_parser(
     *,
     prog: str = "python -m src.cli",
-    description: str = "Initialise and verify the DINOv2-S project infrastructure.",
+    description: str = "Initialise and verify the DINOv2-LeafCare project infrastructure.",
 ) -> argparse.ArgumentParser:
     """Build an argument parser accepting the shared ``--config`` option.
 

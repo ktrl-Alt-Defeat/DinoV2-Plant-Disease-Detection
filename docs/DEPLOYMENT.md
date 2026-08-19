@@ -32,15 +32,14 @@ Declared in [pyproject.toml](../pyproject.toml):
 | `python-multipart` | `>=0.0.12` | multipart upload parsing |
 | `torch` | unpinned | everything |
 | `torchvision` | unpinned | transforms, `ImageFolder` |
-| `torchaudio` | unpinned | **no imports found** |
-| `huggingface-hub` | `>=1.27.0` | **no imports found** |
 
-Dev group: `ruff>=0.16.3`, `httpx>=0.28.0` (the latter backs
+Eleven runtime dependencies, all of them reached by `src`. Dev group:
+`ruff>=0.16.3`, `httpx>=0.28.0` (the latter backs
 `fastapi.testclient.TestClient`).
 
-> `torch`, `torchvision` and `torchaudio` carry **no version floors**. Pinning is
-> supplied solely by `uv.lock`. A fresh `uv lock` on another machine could resolve
-> a different torch. See [CODEMAP.md](CODEMAP.md#technical-debt).
+> `torch` and `torchvision` carry **no version floors**. Pinning is supplied
+> solely by `uv.lock`. A fresh `uv lock` on another machine could resolve a
+> different torch. See [CODEMAP.md](CODEMAP.md#technical-debt).
 
 ## CUDA wheel pinning
 
@@ -53,11 +52,10 @@ explicit = true
 [tool.uv.sources]
 torch = { index = "pytorch-cu130" }
 torchvision = { index = "pytorch-cu130" }
-torchaudio = { index = "pytorch-cu130" }
 ```
 
-Source: [pyproject.toml](../pyproject.toml). The three torch packages resolve from
-the CUDA 13.0 index rather than PyPI. Without this, the Windows PyPI wheel is
+Source: [pyproject.toml](../pyproject.toml). Both torch packages resolve from the
+CUDA 13.0 index rather than PyPI. Without this, the Windows PyPI wheel is
 CPU-only.
 
 ## Install

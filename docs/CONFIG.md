@@ -227,12 +227,11 @@ Boolean switches that change behaviour:
 
 | Field | Value | Read by |
 | --- | --- | --- |
-| `pyproject.toml` `version` | `0.1.0` | Packaging only — **never read at runtime** |
+| `pyproject.toml` `version` | `1.0.0` | Packaging only — **never read at runtime** |
 | `configs/config.yaml` `project.version` | `1.0.0` | `src/cli.py`, `src/api/settings.py` |
 
-These are unsynchronised. `pyproject.toml` `description` still reads
-`"DINOv2-S plant disease classification."` while `model.name` is `dinov2_vitb14`
-— see [CODEMAP.md](CODEMAP.md#technical-debt).
+The two agree, but nothing enforces that: they are separate fields read by
+separate code paths. Bump both together.
 
 ## Runtime-derived values
 

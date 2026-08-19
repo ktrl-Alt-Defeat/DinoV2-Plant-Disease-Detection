@@ -40,7 +40,7 @@ STATUS_OK: Final[str] = "ok"
 #: Responses documented for the prediction endpoints in the OpenAPI schema.
 _PREDICT_RESPONSES: Final[dict[int | str, dict[str, object]]] = {
     status.HTTP_400_BAD_REQUEST: {"model": ErrorResponse, "description": "Undecodable image."},
-    status.HTTP_413_REQUEST_ENTITY_TOO_LARGE: {
+    status.HTTP_413_CONTENT_TOO_LARGE: {
         "model": ErrorResponse,
         "description": "Upload exceeds the size or batch limit.",
     },
@@ -48,7 +48,7 @@ _PREDICT_RESPONSES: Final[dict[int | str, dict[str, object]]] = {
         "model": ErrorResponse,
         "description": "Content type is not an accepted image type.",
     },
-    status.HTTP_422_UNPROCESSABLE_ENTITY: {
+    status.HTTP_422_UNPROCESSABLE_CONTENT: {
         "model": ErrorResponse,
         "description": "Request did not satisfy the endpoint signature.",
     },

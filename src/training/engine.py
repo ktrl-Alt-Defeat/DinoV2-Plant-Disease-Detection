@@ -152,22 +152,6 @@ def evaluate(
     return accumulator.outcome()
 
 
-def peak_gpu_memory_mib(device: torch.device) -> float:
-    """Return the peak CUDA allocation since the last reset, in MiB.
-
-    Returns ``0.0`` on CPU, where the statistic does not exist.
-    """
-    if device.type != "cuda":
-        return 0.0
-    return torch.cuda.max_memory_allocated(device) / 1024**2
-
-
-def reset_gpu_memory_statistics(device: torch.device) -> None:
-    """Reset the CUDA peak-allocation counter so it measures one epoch."""
-    if device.type == "cuda":
-        torch.cuda.reset_peak_memory_stats(device)
-
-
 def log_epoch_start(epoch: int, epochs: int, learning_rate: float) -> None:
     """Log the header line of an epoch."""
     _LOGGER.info("Epoch %d/%d starting (lr=%.3e).", epoch, epochs, learning_rate)

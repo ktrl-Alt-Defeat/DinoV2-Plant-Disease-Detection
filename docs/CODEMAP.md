@@ -5,7 +5,7 @@
 | Path | Tracked? | Purpose |
 | --- | --- | --- |
 | `configs/` | yes | `config.yaml`, the single source of truth |
-| `src/` | yes | All application code: 15 root modules + 6 packages, 43 `.py` files (7 are `__init__.py`) |
+| `src/` | yes | All application code: 14 root modules + 5 packages, 42 `.py` files (6 are `__init__.py`) |
 | `tests/` | yes | 3 unittest modules, 127 test methods |
 | `docs/` | yes | This documentation |
 | `data/` | git-ignored | `train/`, `val/`, `test/` `ImageFolder` layout |
@@ -21,14 +21,14 @@
 | [logger.py](../src/logger.py) | 123 | Root logger `dinov2_leafcare`, idempotent config, UTF-8 console |
 | [config.py](../src/config.py) | 241 | `Config`, `load_config`, `validate_keys`, `with_overrides` |
 | [utils.py](../src/utils.py) | 199 | `Timer`, `count_parameters`, JSON/CSV/text writers, formatters |
-| [device.py](../src/device.py) | 92 | `get_device`, `get_device_info`, `DeviceInfo` |
+| [device.py](../src/device.py) | 122 | `get_device`, `get_device_info`, `DeviceInfo`, `synchronize`, `reset_peak_memory`, `peak_memory_mib` |
 | [seed.py](../src/seed.py) | 56 | `set_seed` across Python, NumPy, torch, CUDA, cuDNN |
 | [reporting.py](../src/reporting.py) | 48 | Console banner/rule/entry primitives |
 | [cli.py](../src/cli.py) | 203 | `build_parser`, `bootstrap`, `BootstrapReport`, infra CLI |
 | [model.py](../src/model.py) | 437 | `DinoV2Classifier`, specs, `build_model`, `build_classifier` |
 | [verification.py](../src/verification.py) | 286 | Structural model verification, artifact writers |
 | [audit_dataset.py](../src/audit_dataset.py) | 114 | Dataset audit CLI |
-| [train.py](../src/train.py) | 564 | Training orchestration CLI |
+| [train.py](../src/train.py) | 559 | Training orchestration CLI |
 | [evaluate.py](../src/evaluate.py) | 560 | Evaluation orchestration CLI |
 | [verify_pipeline.py](../src/verify_pipeline.py) | 407 | 13-stage pipeline verification CLI |
 
@@ -60,7 +60,7 @@ authoritative ([validation.py:391](../src/datasets/validation.py)).
 | --- | --- | --- |
 | [checkpoints.py](../src/training/checkpoints.py) | 333 | `save_checkpoint`, `load_checkpoint`, `load_model_checkpoint`, `read_checkpoint`, `CheckpointContents`, `CheckpointMetadata`, `ResumeState`, `CheckpointError` |
 | [optim.py](../src/training/optim.py) | 207 | `build_optimizer` (AdamW), `build_scheduler` (Cosine), `clip_gradients`, `current_learning_rate` |
-| [engine.py](../src/training/engine.py) | 173 | `train_one_epoch`, `evaluate`, `_OutcomeAccumulator`, GPU memory helpers |
+| [engine.py](../src/training/engine.py) | 157 | `train_one_epoch`, `evaluate`, `_OutcomeAccumulator`, `log_epoch_start` |
 | [early_stopping.py](../src/training/early_stopping.py) | 160 | `EarlyStopping`, `EarlyStoppingSpecification` |
 | [precision.py](../src/training/precision.py) | 138 | `PrecisionSpecification.resolve`, `build_grad_scaler` |
 | [metrics.py](../src/training/metrics.py) | 94 | `EpochMetrics`, `EpochOutcome`, `write_history` |
@@ -73,7 +73,7 @@ authoritative ([validation.py:391](../src/datasets/validation.py)).
 | File | Lines | Key definitions |
 | --- | --- | --- |
 | [metrics.py](../src/evaluation/metrics.py) | 555 | `compute_metrics`, `OverallMetrics`, `ClassMetrics`, `CalibrationSummary`, `MetricLimitations`, `EvaluationMetrics` |
-| [inference.py](../src/evaluation/inference.py) | 316 | `run_inference`, `benchmark_inference`, `softmax_probabilities`, `BenchmarkResult` |
+| [inference.py](../src/evaluation/inference.py) | 296 | `run_inference`, `benchmark_inference`, `softmax_probabilities`, `BenchmarkResult` |
 | [integrity.py](../src/evaluation/integrity.py) | 211 | `fingerprint_file`, `parameter_digest`, 7 `check_*` functions, `enforce` |
 | [reporting.py](../src/evaluation/reporting.py) | 132 | `write_reports`, `ReportFilenames` |
 
@@ -117,13 +117,12 @@ found **one** name with zero textual references outside its definition:
 registered by the `@router.post("/predict/batch")` decorator and exercised by
 `BatchEndpointTests`.
 
-**Conclusion: no dead public code.**
+**Conclusion: no dead public code.** A companion scan of every module-level
+constant and private name found no unreferenced definitions either, and
+`ruff check` (rule `F`) reports no unused imports or locals.
 
-Empty package:
-
-| Path | Content |
-| --- | --- |
-| [src/models/__init__.py](../src/models/__init__.py) | Docstring only: *"Reserved for a later milestone; intentionally empty."* |
+The empty `src/models/` placeholder package was removed; `src/model.py` is the
+only model module, so the near-identical-name hazard is gone.
 
 ## TODO / FIXME comments
 
@@ -143,14 +142,14 @@ Three occurrences of the word "placeholder" exist, all documentation prose:
 | # | Issue | Evidence | Impact |
 | --- | --- | --- | --- |
 | 1 | ~~Root `README.md` stale~~ **Resolved** | Rewritten to describe the implemented system and index `docs/`. Verified: no `vits14`/384-dim/"no evaluation code" claims remain outside the backbone-switching list | — |
-| 2 | **`torchaudio` unused** | 0 imports in `src` + `tests`; declared in [pyproject.toml](../pyproject.toml) | Unnecessary install weight |
-| 3 | **`huggingface-hub` unused** | 0 imports in `src` + `tests`; declared in [pyproject.toml](../pyproject.toml) | Unnecessary dependency |
-| 4 | **No version floors on torch stack** | `"torch"`, `"torchvision"`, `"torchaudio"` unpinned | A fresh `uv lock` could resolve an incompatible torch |
-| 5 | **Version fields unsynchronised** | `pyproject.toml` `0.1.0` vs `project.version` `1.0.0` | Ambiguous provenance |
-| 6 | **`pyproject.toml` description stale** | `"DINOv2-S plant disease classification."` while backbone is ViT-B | Incorrect metadata |
-| 7 | **`src/model.py` vs `src/models/`** | Module and empty package differing by one character | Import-confusion hazard |
-| 8 | **`with_overrides` duplicated in tests** | [config.py:167](../src/config.py) vs `override_config` [test_milestone3.py:75](../tests/test_milestone3.py) | Divergence risk; the test copy uses `.update()` and lacks the mapping check |
-| 9 | **Tests coupled to the live config file** | `test_milestone1.py` and `test_milestone3.py` assert against `configs/config.yaml` values (`dinov2_vitb14`, `768`, `dinov2_plant_disease`) | Editing production config breaks tests |
+| 2 | ~~`torchaudio` unused~~ **Resolved** | Removed from [pyproject.toml](../pyproject.toml) and `uv.lock` | — |
+| 3 | ~~`huggingface-hub` unused~~ **Resolved** | Removed from [pyproject.toml](../pyproject.toml) and `uv.lock` (with its `hf-xet` transitive) | — |
+| 4 | **No version floors on torch stack** | `"torch"`, `"torchvision"` unpinned | A fresh `uv lock` could resolve an incompatible torch |
+| 5 | ~~Version fields unsynchronised~~ **Resolved** | `pyproject.toml` now `1.0.0`, matching `project.version`. Still two hand-maintained fields | — |
+| 6 | ~~`pyproject.toml` description stale~~ **Resolved** | Now names the ViT-B/14 backbone | — |
+| 7 | ~~`src/model.py` vs `src/models/`~~ **Resolved** | Empty `src/models/` package deleted | — |
+| 8 | ~~`with_overrides` duplicated in tests~~ **Resolved** | `override_config` [test_milestone3.py](../tests/test_milestone3.py) now delegates to `src.config.with_overrides` | — |
+| 9 | **Tests coupled to the live config file** | `test_milestone1.py` and `test_milestone3.py` assert against `configs/config.yaml` values (`dinov2_vitb14`, `768`, `dinov2_plant_disease`) | Editing production config breaks tests. `SettingsTests` in `test_milestone6.py` was decoupled; the rest were not |
 | 10 | **Evaluation re-audits the whole dataset** | `_build_bundle` audits all splits to evaluate one ([evaluate.py:385](../src/evaluate.py)) | Decodes ~110k images to score ~7.7k |
 | 11 | **`Config.get` deep-copies on every access** | [config.py:85](../src/config.py) | Per-call cost if used in a hot loop |
 | 12 | **`is_backbone_frozen` rescans all parameters** | [model.py:243](../src/model.py); used inside `describe()` | O(params) per property read |
@@ -163,10 +162,10 @@ Three occurrences of the word "placeholder" exist, all documentation prose:
 
 | Pair | Files | Notes |
 | --- | --- | --- |
-| Config override | [config.py:167](../src/config.py) / [test_milestone3.py:75](../tests/test_milestone3.py) | Same intent, different implementation |
-| Console report rendering | [verification.py:171](../src/verification.py) / [verify_pipeline.py](../src/verify_pipeline.py) / [evaluate.py:267](../src/evaluate.py) / [audit_dataset.py:37](../src/audit_dataset.py) | All build on `src/reporting.py` primitives but each re-implements layout |
+| ~~Config override~~ | [config.py](../src/config.py) / [test_milestone3.py](../tests/test_milestone3.py) | **Resolved.** The test helper now calls `with_overrides` |
+| ~~GPU memory helpers~~ | [training/engine.py](../src/training/engine.py) / [evaluation/inference.py](../src/evaluation/inference.py) | **Resolved.** `synchronize`, `reset_peak_memory` and `peak_memory_mib` now live once in [device.py](../src/device.py) |
+| Console report rendering | [verification.py:171](../src/verification.py) / [verify_pipeline.py](../src/verify_pipeline.py) / [evaluate.py:267](../src/evaluate.py) / [audit_dataset.py:37](../src/audit_dataset.py) | All build on `src/reporting.py` primitives but each re-implements layout. Left as is: the four reports are genuinely different documents, and a shared abstraction would have to be re-parameterised per caller |
 | Figure specification | [plots.py](../src/visualization/plots.py) / [evaluation_plots.py](../src/visualization/evaluation_plots.py) | `EvaluationPlotSpecification` reuses `PlotSpecification` for size/dpi, so duplication is partial |
-| GPU memory helpers | [training/engine.py:152](../src/training/engine.py) / [evaluation/inference.py:309](../src/evaluation/inference.py) | Two near-identical `peak memory` + `reset` pairs |
 
 ## Undocumented components
 

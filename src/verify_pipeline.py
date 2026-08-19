@@ -25,11 +25,11 @@ from src.config import Config, ConfigError, with_overrides
 from src.datasets.loaders import DataBundle, DataLoaderSpecification, build_dataloaders
 from src.datasets.transforms import TransformSpecification
 from src.datasets.validation import DatasetSpecification, DatasetValidationError
+from src.device import peak_memory_mib
 from src.logger import configure_console_encoding, get_logger
 from src.model import DinoV2Classifier, ModelBuildError, build_model
 from src.training.checkpoints import CheckpointError, load_checkpoint, save_checkpoint
 from src.training.early_stopping import EarlyStopping, EarlyStoppingSpecification
-from src.training.engine import peak_gpu_memory_mib
 from src.training.metrics import EpochMetrics, write_history
 from src.training.optim import (
     OptimizerSpecification,
@@ -397,7 +397,7 @@ def _synthetic_history(device: torch.device) -> list[EpochMetrics]:
             val_accuracy=0.4 + 0.1 * epoch,
             learning_rate=1e-4,
             epoch_seconds=1.0,
-            gpu_peak_mib=peak_gpu_memory_mib(device),
+            gpu_peak_mib=peak_memory_mib(device),
         )
         for epoch in range(1, _SYNTHETIC_EPOCHS + 1)
     ]

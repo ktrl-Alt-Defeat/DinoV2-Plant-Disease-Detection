@@ -30,13 +30,13 @@ from src.datasets.validation import (
     DatasetValidationError,
     audit_dataset,
 )
+from src.device import peak_memory_mib
 from src.evaluation import integrity
 from src.evaluation.inference import (
     EVALUATION_PRECISION,
     BenchmarkResult,
     BenchmarkSpecification,
     benchmark_inference,
-    peak_memory_mib,
     run_inference,
     softmax_probabilities,
 )

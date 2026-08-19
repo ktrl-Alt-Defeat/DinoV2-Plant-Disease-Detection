@@ -57,7 +57,7 @@ class UnsupportedMediaTypeError(ApiError):
 class PayloadTooLargeError(ApiError):
     """Raised when an upload exceeds the configured size or batch limit."""
 
-    status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    status_code = status.HTTP_413_CONTENT_TOO_LARGE
     code = "payload_too_large"
 
 
@@ -130,7 +130,7 @@ async def handle_validation_error(
     )
     return error_response(
         request,
-        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
         code="validation_error",
         detail=detail or "Request failed validation.",
     )

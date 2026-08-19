@@ -196,7 +196,7 @@ architecture, but not the pretrained `.pth` and not `data/`.
 | Checkpoint SHA-256 | computed by `fingerprint_file` | `/metadata`, `evaluation.json` |
 | Checkpoint epoch | `epoch` key | `/metadata`, `evaluation.json` |
 | `best_value` | monitored metric at selection | `/metadata` |
-| Distribution version | `0.1.0` in `pyproject.toml` | **not surfaced at runtime** |
+| Distribution version | `1.0.0` in `pyproject.toml` | **not surfaced at runtime** |
 
 There is no automatic link between `project.version` and the checkpoint contents;
 changing weights without editing config leaves `model_version` unchanged.

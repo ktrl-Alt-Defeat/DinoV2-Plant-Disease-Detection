@@ -518,7 +518,7 @@ class SyntaxTests(unittest.TestCase):
             "seed.py",
             "utils.py",
         )
-        expected_packages = ("models", "datasets", "training", "evaluation", "visualization")
+        expected_packages = ("datasets", "training", "evaluation", "visualization", "api")
 
         for module in expected_modules:
             with self.subTest(module=module):

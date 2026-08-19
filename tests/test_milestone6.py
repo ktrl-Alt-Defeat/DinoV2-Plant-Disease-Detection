@@ -28,7 +28,7 @@ from src.api.inference import (
 )
 from src.api.main import create_app
 from src.api.settings import ApiSettings
-from src.config import load_config
+from src.config import Config, load_config
 from src.datasets.transforms import TransformSpecification, build_eval_transform
 from src.logger import shutdown_logging
 
@@ -132,17 +132,18 @@ class SettingsTests(unittest.TestCase):
     """1. Configuration of the service."""
 
     def test_settings_are_read_from_the_repository_configuration(self) -> None:
-        settings = ApiSettings.from_config(load_config("configs/config.yaml"))
+        config = load_config("configs/config.yaml")
+        settings = ApiSettings.from_config(config)
 
-        self.assertEqual(settings.checkpoint_filename, "best_model.pt")
-        self.assertEqual(settings.top_k, 5)
+        # Asserted against the configuration itself rather than against literals,
+        # so tuning the ``api`` section does not break the loader's test.
+        self.assertEqual(settings.checkpoint_filename, config.get("api.checkpoint_filename"))
+        self.assertEqual(settings.top_k, config.get("api.top_k"))
         self.assertGreater(settings.max_batch_size, 0)
         self.assertGreater(settings.max_image_bytes, 0)
         self.assertIn(JPEG_TYPE, settings.allowed_content_types)
 
     def test_invalid_limits_are_rejected(self) -> None:
-        from src.config import Config
-
         for key in ("top_k", "max_batch_size", "max_image_bytes"):
             payload = load_config("configs/config.yaml").as_dict()
             payload["api"][key] = 0
@@ -150,8 +151,6 @@ class SettingsTests(unittest.TestCase):
                 ApiSettings.from_config(Config(payload))
 
     def test_empty_content_type_list_is_rejected(self) -> None:
-        from src.config import Config
-
         payload = load_config("configs/config.yaml").as_dict()
         payload["api"]["allowed_content_types"] = []
         with self.assertRaises(ValueError):
